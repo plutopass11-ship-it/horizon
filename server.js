@@ -706,8 +706,17 @@ app.get('/d/:token/info', (req, res) => {
       }
     }
 
+    // Determine if the shared source is a directory on disk
+    const browseRoot = getSetting('browse_root') || NAS_DIR;
+    const resolvedRoot = path.resolve(browseRoot);
+    const sourcePath = path.resolve(resolvedRoot, share.source_path);
+    let isDirectory = false;
+    try { isDirectory = fs.existsSync(sourcePath) && fs.statSync(sourcePath).isDirectory(); } catch {}
+
     res.json({
       source_path: share.source_path,
+      folder_name: path.basename(share.source_path),
+      is_directory: isDirectory,
       status: share.status,
       zip_progress: share.zip_progress,
       zip_size: share.zip_size,
@@ -721,6 +730,268 @@ app.get('/d/:token/info', (req, res) => {
   } catch (err) {
     console.error('[download] Error fetching share info:', err);
     res.status(500).json({ error: 'Failed to fetch share info.' });
+  }
+});
+
+/**
+ * GET /d/:token/files?path=
+ * Browse the contents of a shared folder. Public endpoint.
+ * Lists files and subdirectories within the share's source_path.
+ *
+ * Query: path (optional, relative to the share's source_path)
+ * Returns: { path: string, entries: Array<{ name, type, size, modified }> }
+ */
+app.get('/d/:token/files', (req, res) => {
+  try {
+    const share = stmts.getShareByToken.get(req.params.token);
+
+    if (!share) {
+      return res.status(404).json({ error: 'Share not found.' });
+    }
+
+    // Validate share is still active
+    if (share.status === 'revoked') {
+      return res.status(410).json({ error: 'This share has been revoked.' });
+    }
+
+    if (share.status === 'expired') {
+      return res.status(410).json({ error: 'This share has expired.' });
+    }
+
+    const expiresAt = new Date(share.expires_at + 'Z');
+    if (expiresAt <= new Date()) {
+      return res.status(410).json({ error: 'This share has expired.' });
+    }
+
+    if (share.download_count >= share.max_downloads) {
+      return res
+        .status(410)
+        .json({ error: 'Download limit reached for this share.' });
+    }
+
+    // If PIN-protected, check for verification cookie
+    if (share.pin_hash) {
+      const pinCookie = req.cookies && req.cookies['pin_verified_' + share.token];
+      if (!pinCookie) {
+        return res.status(403).json({ error: 'PIN verification required' });
+      }
+    }
+
+    // Resolve the share's root directory on disk
+    const browseRoot = getSetting('browse_root') || NAS_DIR;
+    const resolvedRoot = path.resolve(browseRoot);
+    const shareRoot = path.resolve(resolvedRoot, share.source_path);
+
+    // The share must point to a directory for browsing
+    if (!fs.existsSync(shareRoot) || !fs.statSync(shareRoot).isDirectory()) {
+      return res.status(400).json({ error: 'This share is not a browsable folder.' });
+    }
+
+    // Resolve the requested sub-path within the share
+    const relativePath = req.query.path || '';
+    const requestedPath = path.resolve(shareRoot, relativePath);
+
+    // Prevent path traversal outside the share's source directory
+    if (!requestedPath.startsWith(shareRoot)) {
+      return res.status(403).json({ error: 'Access denied: path traversal.' });
+    }
+
+    if (!fs.existsSync(requestedPath)) {
+      return res.status(404).json({ error: 'Path not found.' });
+    }
+
+    const stat = fs.statSync(requestedPath);
+    if (!stat.isDirectory()) {
+      return res.status(400).json({ error: 'Path is not a directory.' });
+    }
+
+    const dirEntries = fs.readdirSync(requestedPath, { withFileTypes: true });
+    const entries = [];
+
+    for (const entry of dirEntries) {
+      // Skip hidden files (starting with .)
+      if (entry.name.startsWith('.')) continue;
+
+      const fullPath = path.join(requestedPath, entry.name);
+      try {
+        const entryStat = fs.statSync(fullPath);
+        entries.push({
+          name: entry.name,
+          type: entry.isDirectory() ? 'directory' : 'file',
+          size: entry.isFile() ? entryStat.size : undefined,
+          modified: entryStat.mtime.toISOString(),
+        });
+      } catch {
+        // Skip entries we can't stat (permission errors, broken symlinks)
+        continue;
+      }
+    }
+
+    // Sort: directories first, then alphabetically
+    entries.sort((a, b) => {
+      if (a.type !== b.type) return a.type === 'directory' ? -1 : 1;
+      return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+    });
+
+    res.json({
+      path: relativePath || '/',
+      entries,
+    });
+  } catch (err) {
+    console.error('[download] Error browsing share files:', err);
+    res.status(500).json({ error: 'Failed to browse share directory.' });
+  }
+});
+
+/**
+ * GET /d/:token/file?path=
+ * Download an individual file from a shared folder. Public endpoint.
+ * Streams the file with proper Content-Disposition and Content-Type.
+ * Supports Accept-Ranges for resumable downloads.
+ * Does NOT increment the share's download_count.
+ *
+ * Query: path (required, relative to the share's source_path)
+ */
+app.get('/d/:token/file', (req, res) => {
+  try {
+    const share = stmts.getShareByToken.get(req.params.token);
+
+    if (!share) {
+      return res.status(404).json({ error: 'Share not found.' });
+    }
+
+    // Validate share is still active
+    if (share.status === 'revoked') {
+      return res.status(410).json({ error: 'This share has been revoked.' });
+    }
+
+    if (share.status === 'expired') {
+      return res.status(410).json({ error: 'This share has expired.' });
+    }
+
+    const expiresAt = new Date(share.expires_at + 'Z');
+    if (expiresAt <= new Date()) {
+      return res.status(410).json({ error: 'This share has expired.' });
+    }
+
+    if (share.download_count >= share.max_downloads) {
+      return res
+        .status(410)
+        .json({ error: 'Download limit reached for this share.' });
+    }
+
+    // If PIN-protected, check for verification cookie
+    if (share.pin_hash) {
+      const pinCookie = req.cookies && req.cookies['pin_verified_' + share.token];
+      if (!pinCookie) {
+        return res.status(403).json({ error: 'PIN verification required' });
+      }
+    }
+
+    // Resolve the share's root directory on disk
+    const browseRoot = getSetting('browse_root') || NAS_DIR;
+    const resolvedRoot = path.resolve(browseRoot);
+    const shareRoot = path.resolve(resolvedRoot, share.source_path);
+
+    // A path query param is required
+    const relativePath = req.query.path;
+    if (!relativePath) {
+      return res.status(400).json({ error: 'path query parameter is required.' });
+    }
+
+    const requestedPath = path.resolve(shareRoot, relativePath);
+
+    // Prevent path traversal outside the share's source directory
+    if (!requestedPath.startsWith(shareRoot)) {
+      return res.status(403).json({ error: 'Access denied: path traversal.' });
+    }
+
+    if (!fs.existsSync(requestedPath)) {
+      return res.status(404).json({ error: 'File not found.' });
+    }
+
+    const fileStat = fs.statSync(requestedPath);
+    if (!fileStat.isFile()) {
+      return res.status(400).json({ error: 'Path is not a file.' });
+    }
+
+    // Determine content type from extension
+    const downloadFilename = path.basename(requestedPath);
+    const ext = path.extname(downloadFilename).toLowerCase();
+    const mimeTypes = {
+      '.zip': 'application/zip',
+      '.rar': 'application/x-rar-compressed',
+      '.7z': 'application/x-7z-compressed',
+      '.tar': 'application/x-tar',
+      '.gz': 'application/gzip',
+      '.pdf': 'application/pdf',
+      '.mp4': 'video/mp4',
+      '.mov': 'video/quicktime',
+      '.avi': 'video/x-msvideo',
+      '.mkv': 'video/x-matroska',
+      '.mp3': 'audio/mpeg',
+      '.wav': 'audio/wav',
+      '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.gif': 'image/gif',
+      '.tiff': 'image/tiff',
+      '.tif': 'image/tiff',
+      '.exr': 'application/octet-stream',
+      '.psd': 'application/octet-stream',
+      '.blend': 'application/octet-stream',
+      '.ma': 'application/octet-stream',
+      '.mb': 'application/octet-stream',
+      '.fbx': 'application/octet-stream',
+      '.obj': 'application/octet-stream',
+      '.abc': 'application/octet-stream',
+      '.usd': 'application/octet-stream',
+      '.usda': 'application/octet-stream',
+      '.usdc': 'application/octet-stream',
+      '.usdz': 'application/octet-stream',
+    };
+    const contentType = mimeTypes[ext] || 'application/octet-stream';
+    const fileSize = fileStat.size;
+
+    // ─── Accept-Ranges / Range support ───────────────────────────────
+    const rangeHeader = req.headers.range;
+
+    res.set({
+      'Content-Disposition': `attachment; filename="${downloadFilename}"`,
+      'Content-Type': contentType,
+      'Accept-Ranges': 'bytes',
+    });
+
+    if (rangeHeader) {
+      const parts = rangeHeader.replace(/bytes=/, '').split('-');
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+
+      if (start >= fileSize || end >= fileSize || start > end) {
+        res.set('Content-Range', `bytes */${fileSize}`);
+        return res.status(416).end();
+      }
+
+      const chunkSize = end - start + 1;
+
+      res.status(206);
+      res.set({
+        'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+        'Content-Length': chunkSize,
+      });
+
+      const stream = fs.createReadStream(requestedPath, { start, end });
+      stream.pipe(res);
+    } else {
+      res.set('Content-Length', fileSize);
+      const stream = fs.createReadStream(requestedPath);
+      stream.pipe(res);
+    }
+  } catch (err) {
+    console.error('[download] Error serving individual file:', err);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Failed to serve file.' });
+    }
   }
 });
 

@@ -16,6 +16,7 @@
   const $revoked    = document.getElementById('dl-revoked');
   const $limit      = document.getElementById('dl-limit');
   const $error      = document.getElementById('dl-error');
+  const $browser    = document.getElementById('dl-browser');
   const $errorText  = document.getElementById('dl-error-text');
 
   const $fileName   = document.getElementById('dl-file-name');
@@ -31,12 +32,23 @@
   const $cdMins  = document.getElementById('cd-mins');
   const $cdSecs  = document.getElementById('cd-secs');
 
+  // Browser elements
+  const $browserTitle     = document.getElementById('dl-browser-title');
+  const $browserDownloads = document.getElementById('dl-browser-downloads');
+  const $browserBreadcrumb = document.getElementById('dl-browser-breadcrumb');
+  const $browserGrid      = document.getElementById('dl-browser-grid');
+  const $cd2Days  = document.getElementById('cd2-days');
+  const $cd2Hours = document.getElementById('cd2-hours');
+  const $cd2Mins  = document.getElementById('cd2-mins');
+  const $cd2Secs  = document.getElementById('cd2-secs');
+
   // PIN elements
   const $pinInput   = document.getElementById('dl-pin-input');
   const $pinSubmit  = document.getElementById('dl-pin-submit');
   const $pinError   = document.getElementById('dl-pin-error');
 
   let countdownTimer = null;
+  let countdownTimer2 = null;
   let shareData = null;
 
   /* ── HELPERS ───────────────────────────────────────────────── */
@@ -63,7 +75,7 @@
   }
 
   function showState(stateId) {
-    [$loading, $pin, $preparing, $ready, $expired, $revoked, $limit, $error].forEach(el => {
+    [$loading, $pin, $preparing, $ready, $browser, $expired, $revoked, $limit, $error].forEach(el => {
       if (el) el.hidden = true;
     });
     const el = document.getElementById(`dl-${stateId}`);
@@ -319,7 +331,13 @@
       return;
     }
 
-    // Ready
+    // If it's a browsable directory (non-zipped), show file browser
+    if (data.is_directory && (data.is_zipped === 0 || data.is_zipped === false)) {
+      showFileBrowser(data, token);
+      return;
+    }
+
+    // Ready (single file or zipped directory)
     showReady();
   }
 
@@ -346,6 +364,225 @@
       }
     }
   });
+
+  /* ── FILE BROWSER ───────────────────────────────────────────── */
+
+  function showFileBrowser(data, token) {
+    $browserTitle.textContent = data.folder_name || data.folderName || data.source_path || 'Shared Files';
+
+    const dlCount = data.download_count ?? data.downloadCount ?? 0;
+    const maxDl = data.max_downloads ?? data.maxDownloads;
+    if (maxDl) {
+      const remaining = Math.max(0, maxDl - dlCount);
+      $browserDownloads.textContent = `${remaining} download${remaining !== 1 ? 's' : ''} remaining`;
+    } else {
+      $browserDownloads.textContent = '';
+    }
+
+    showState('browser');
+    loadShareFiles(token, '');
+
+    // Start countdown on the browser's timer
+    const expiresAt = data.expires_at || data.expiresAt;
+    if (expiresAt) {
+      startCountdown2(expiresAt);
+    }
+  }
+
+  function startCountdown2(expiresAt) {
+    if (countdownTimer2) clearInterval(countdownTimer2);
+
+    const targetMs = new Date(expiresAt).getTime();
+
+    function tick() {
+      const now = Date.now();
+      const diff = targetMs - now;
+
+      if (diff <= 0) {
+        clearInterval(countdownTimer2);
+        $cd2Days.textContent  = '00';
+        $cd2Hours.textContent = '00';
+        $cd2Mins.textContent  = '00';
+        $cd2Secs.textContent  = '00';
+        showState('expired');
+        return;
+      }
+
+      const totalSecs = Math.floor(diff / 1000);
+      const days  = Math.floor(totalSecs / 86400);
+      const hours = Math.floor((totalSecs % 86400) / 3600);
+      const mins  = Math.floor((totalSecs % 3600) / 60);
+      const secs  = totalSecs % 60;
+
+      $cd2Days.textContent  = pad(days);
+      $cd2Hours.textContent = pad(hours);
+      $cd2Mins.textContent  = pad(mins);
+      $cd2Secs.textContent  = pad(secs);
+    }
+
+    tick();
+    countdownTimer2 = setInterval(tick, 1000);
+  }
+
+  async function loadShareFiles(token, browsePath) {
+    $browserGrid.innerHTML = '<div class="dl-browser-empty"><div class="spinner"></div><p>Loading…</p></div>';
+    renderBrowserBreadcrumb(token, browsePath);
+
+    try {
+      const res = await fetch(`/d/${token}/files?path=${encodeURIComponent(browsePath)}`, { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to load files');
+      const data = await res.json();
+      renderBrowserFiles(data.entries || [], token, browsePath);
+    } catch (err) {
+      $browserGrid.innerHTML = `<div class="dl-browser-empty">⚠️ ${err.message}</div>`;
+    }
+  }
+
+  function renderBrowserBreadcrumb(token, browsePath) {
+    $browserBreadcrumb.innerHTML = '';
+
+    // Root button
+    const rootBtn = document.createElement('button');
+    rootBtn.className = 'dl-breadcrumb-item';
+    rootBtn.textContent = '📂 Root';
+    if (!browsePath) {
+      rootBtn.classList.add('active');
+    } else {
+      rootBtn.addEventListener('click', () => loadShareFiles(token, ''));
+    }
+    $browserBreadcrumb.appendChild(rootBtn);
+
+    if (browsePath) {
+      const parts = browsePath.split('/').filter(Boolean);
+      let accumulated = '';
+      parts.forEach((part, idx) => {
+        // Add separator
+        const sep = document.createElement('span');
+        sep.className = 'dl-breadcrumb-sep';
+        sep.textContent = '›';
+        $browserBreadcrumb.appendChild(sep);
+
+        accumulated += (accumulated ? '/' : '') + part;
+        const btn = document.createElement('button');
+        btn.className = 'dl-breadcrumb-item';
+        btn.textContent = part;
+
+        if (idx === parts.length - 1) {
+          btn.classList.add('active');
+        } else {
+          const path = accumulated;
+          btn.addEventListener('click', () => loadShareFiles(token, path));
+        }
+        $browserBreadcrumb.appendChild(btn);
+      });
+    }
+  }
+
+  function renderBrowserFiles(entries, token, browsePath) {
+    $browserGrid.innerHTML = '';
+
+    if (!entries.length) {
+      $browserGrid.innerHTML = '<div class="dl-browser-empty">📭 This folder is empty</div>';
+      return;
+    }
+
+    // Sort: directories first, then files alphabetically
+    entries.sort((a, b) => {
+      const aDir = a.type === 'directory' ? 0 : 1;
+      const bDir = b.type === 'directory' ? 0 : 1;
+      if (aDir !== bDir) return aDir - bDir;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+
+    entries.forEach(entry => {
+      const item = document.createElement('div');
+      item.className = 'dl-file-item';
+      item.dataset.type = entry.type || 'file';
+
+      const isDir = entry.type === 'directory';
+      const icon = isDir ? '📁' : getFileIcon(entry.name || '');
+
+      const iconEl = document.createElement('span');
+      iconEl.className = 'dl-file-item-icon';
+      iconEl.textContent = icon;
+
+      const infoEl = document.createElement('div');
+      infoEl.className = 'dl-file-item-info';
+
+      const nameEl = document.createElement('div');
+      nameEl.className = 'dl-file-item-name';
+      nameEl.textContent = entry.name || 'Unnamed';
+      nameEl.title = entry.name || '';
+      infoEl.appendChild(nameEl);
+
+      if (!isDir && entry.size != null) {
+        const sizeEl = document.createElement('div');
+        sizeEl.className = 'dl-file-item-size';
+        sizeEl.textContent = formatBytes(entry.size);
+        infoEl.appendChild(sizeEl);
+      } else if (isDir) {
+        const metaEl = document.createElement('div');
+        metaEl.className = 'dl-file-item-size';
+        metaEl.textContent = 'Folder';
+        infoEl.appendChild(metaEl);
+      }
+
+      item.appendChild(iconEl);
+      item.appendChild(infoEl);
+
+      if (isDir) {
+        // Click to navigate into folder
+        const newPath = browsePath ? browsePath + '/' + entry.name : entry.name;
+        item.addEventListener('click', () => loadShareFiles(token, newPath));
+      } else {
+        // Download button for files
+        const dlBtn = document.createElement('button');
+        dlBtn.className = 'dl-file-item-dl';
+        dlBtn.textContent = '⬇ Download';
+        const filePath = browsePath ? browsePath + '/' + entry.name : entry.name;
+        dlBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          window.location.href = `/d/${token}/file?path=${encodeURIComponent(filePath)}`;
+        });
+        item.appendChild(dlBtn);
+      }
+
+      $browserGrid.appendChild(item);
+    });
+  }
+
+  function getFileIcon(name) {
+    const ext = (name.split('.').pop() || '').toLowerCase();
+    const map = {
+      // Video
+      mp4: '🎬', mov: '🎬', avi: '🎬', mkv: '🎬', wmv: '🎬', flv: '🎬', webm: '🎬',
+      // Audio
+      mp3: '🎵', wav: '🎵', flac: '🎵', aac: '🎵', ogg: '🎵', m4a: '🎵', wma: '🎵',
+      // Images
+      jpg: '🖼️', jpeg: '🖼️', png: '🖼️', gif: '🖼️', bmp: '🖼️', svg: '🖼️',
+      webp: '🖼️', tiff: '🖼️', tif: '🖼️', ico: '🖼️', psd: '🖼️', raw: '🖼️',
+      // Documents
+      pdf: '📄', doc: '📝', docx: '📝', txt: '📝', rtf: '📝', odt: '📝',
+      // Spreadsheets
+      xls: '📊', xlsx: '📊', csv: '📊', ods: '📊',
+      // Presentations
+      ppt: '📊', pptx: '📊', odp: '📊',
+      // Archives
+      zip: '📦', rar: '📦', '7z': '📦', tar: '📦', gz: '📦', bz2: '📦',
+      // Code
+      js: '💻', ts: '💻', py: '💻', html: '💻', css: '💻', json: '💻',
+      xml: '💻', yaml: '💻', yml: '💻', sh: '💻', bat: '💻',
+      // 3D / Design
+      blend: '🎨', fbx: '🎨', obj: '🎨', stl: '🎨', c4d: '🎨',
+      // Project files
+      aep: '🎬', prproj: '🎬', drp: '🎬',
+      // Fonts
+      ttf: '🔤', otf: '🔤', woff: '🔤', woff2: '🔤',
+      // Executables
+      exe: '⚙️', msi: '⚙️', dmg: '⚙️', app: '⚙️',
+    };
+    return map[ext] || '📄';
+  }
 
   /* ── INIT ──────────────────────────────────────────────────── */
 

@@ -96,6 +96,47 @@
         </button>
       </div>
 
+      <!-- STATE: File Browser -->
+      <div class="dl-state" id="dl-browser" hidden>
+        <div class="dl-browser-header">
+          <h2 class="dl-browser-title" id="dl-browser-title">Shared Files</h2>
+          <div class="dl-browser-meta">
+            <span class="dl-meta-item" id="dl-browser-downloads"></span>
+          </div>
+        </div>
+
+        <div class="dl-browser-breadcrumb" id="dl-browser-breadcrumb"></div>
+
+        <div class="dl-browser-grid" id="dl-browser-grid">
+          <!-- Files rendered here by JS -->
+        </div>
+
+        <div class="dl-countdown dl-countdown--compact" id="dl-browser-countdown">
+          <p class="dl-countdown-label">Link expires in</p>
+          <div class="dl-countdown-timer">
+            <div class="dl-cd-unit">
+              <span class="dl-cd-value" id="cd2-days">00</span>
+              <span class="dl-cd-label">Days</span>
+            </div>
+            <span class="dl-cd-sep">:</span>
+            <div class="dl-cd-unit">
+              <span class="dl-cd-value" id="cd2-hours">00</span>
+              <span class="dl-cd-label">Hours</span>
+            </div>
+            <span class="dl-cd-sep">:</span>
+            <div class="dl-cd-unit">
+              <span class="dl-cd-value" id="cd2-mins">00</span>
+              <span class="dl-cd-label">Min</span>
+            </div>
+            <span class="dl-cd-sep">:</span>
+            <div class="dl-cd-unit">
+              <span class="dl-cd-value" id="cd2-secs">00</span>
+              <span class="dl-cd-label">Sec</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- STATE: Expired -->
       <div class="dl-state" id="dl-expired" hidden>
         <div class="dl-state-icon dl-state-icon--error">⏰</div>
