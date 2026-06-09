@@ -281,7 +281,7 @@
       const res = await api(`/api/files?path=${encodeURIComponent(path)}`);
       if (!res.ok) throw new Error('Failed to load files');
       const data = await res.json();
-      renderFiles(data.items || data);
+      renderFiles(data.entries || data.items || data);
     } catch (err) {
       $fileGrid.innerHTML = `<div class="empty-state"><span class="empty-icon">⚠️</span><p>${escapeHtml(err.message)}</p></div>`;
     }
