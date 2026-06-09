@@ -11,7 +11,7 @@ services:
       - horizon-db:/data/db
     environment:
       - BASE_URL=https://horizon.flyingpluto.ai
-      - KITSU_API_URL=http://cgwire:3002/api
+      - KITSU_API_URL=http://cgwire/api
       - STYX_EMAIL=styx@flyingpluto.ai
       - STYX_PASSWORD=${STYX_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
