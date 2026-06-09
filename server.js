@@ -284,26 +284,29 @@ app.post('/api/shares', requireAuth, async (req, res) => {
       return res.status(404).json({ error: 'Source path not found.' });
     }
 
-    // ─── Check size limit ─────────────────────────────────────────────
-    let sourceSize = 0;
-    try {
-      const stat = fs.statSync(sourcePath);
-      if (stat.isFile()) {
-        sourceSize = stat.size;
-      } else {
-        // Quick size check for directories — this is synchronous but
-        // acceptable for the request because we need to enforce limits
-        sourceSize = calculateTotalSizeQuick(sourcePath);
+    // ─── Check size limit (only when zipping) ──────────────────────────
+    const shouldZip = zip !== false; // default true
+    if (shouldZip) {
+      let sourceSize = 0;
+      try {
+        const stat = fs.statSync(sourcePath);
+        if (stat.isFile()) {
+          sourceSize = stat.size;
+        } else {
+          // Quick size check for directories — this is synchronous but
+          // acceptable for the request because we need to enforce limits
+          sourceSize = calculateTotalSizeQuick(sourcePath);
+        }
+      } catch {
+        // If size check fails, proceed anyway (zip will fail if too large)
       }
-    } catch {
-      // If size check fails, proceed anyway (zip will fail if too large)
-    }
 
-    const maxBytes = maxZipSizeMb * 1024 * 1024;
-    if (sourceSize > maxBytes) {
-      return res.status(400).json({
-        error: `Source size (${(sourceSize / 1024 / 1024).toFixed(0)} MB) exceeds maximum allowed (${maxZipSizeMb} MB).`,
-      });
+      const maxBytes = maxZipSizeMb * 1024 * 1024;
+      if (sourceSize > maxBytes) {
+        return res.status(400).json({
+          error: `Source size (${(sourceSize / 1024 / 1024).toFixed(0)} MB) exceeds maximum allowed (${maxZipSizeMb} MB).`,
+        });
+      }
     }
 
     // ─── PIN hashing ──────────────────────────────────────────────────
@@ -311,9 +314,6 @@ app.post('/api/shares', requireAuth, async (req, res) => {
     if (pin && typeof pin === 'string' && pin.length > 0) {
       pinHash = crypto.createHash('sha256').update(pin).digest('hex');
     }
-
-    // ─── Determine zip vs direct ──────────────────────────────────────
-    const shouldZip = zip !== false; // default true
 
     // ─── Create share record ──────────────────────────────────────────
     const shareId = uuidv4();
