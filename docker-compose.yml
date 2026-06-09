@@ -15,6 +15,7 @@ services:
       - STYX_EMAIL=styx@flyingpluto.ai
       - STYX_PASSWORD=${STYX_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
+      - PORT=8080
       - ZIP_DIR=/data/zips
       - NAS_DIR=/data/nas
       - DB_DIR=/data/db
