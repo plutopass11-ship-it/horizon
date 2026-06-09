@@ -1,0 +1,35 @@
+services:
+  pluto-horizon:
+    build: .
+    container_name: pluto-horizon
+    restart: unless-stopped
+    ports:
+      - "8085:8080"
+    volumes:
+      - /volume1/PlutoBase:/data/nas:ro
+      - /volume1/PlutoBase/.horizon-zips:/data/zips
+      - horizon-db:/data/db
+    environment:
+      - BASE_URL=https://horizon.flyingpluto.ai
+      - KITSU_API_URL=http://cgwire:3002/api
+      - STYX_EMAIL=styx@flyingpluto.ai
+      - STYX_PASSWORD=${STYX_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+      - ZIP_DIR=/data/zips
+      - NAS_DIR=/data/nas
+      - DB_DIR=/data/db
+    networks:
+      - kitsu_kitsu-network   # Connect to Kitsu's network to reach cgwire
+
+  cloudflared-horizon:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared-horizon
+    command: tunnel --no-autoupdate run --token ${TUNNEL_TOKEN_HORIZON}
+    restart: always
+
+volumes:
+  horizon-db:
+
+networks:
+  kitsu_kitsu-network:
+    external: true
