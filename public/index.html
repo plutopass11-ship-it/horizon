@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pluto Horizon — Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/index.css">
+</head>
+<body>
+
+  <!-- ═══════════════════════ LOGIN SCREEN ═══════════════════════ -->
+  <section id="login-screen" class="login-screen">
+    <div class="login-bg-orb login-bg-orb--1"></div>
+    <div class="login-bg-orb login-bg-orb--2"></div>
+    <div class="login-card glass-card">
+      <div class="login-brand">
+        <span class="brand-icon">◆</span>
+        <h1 class="brand-title">PLUTO HORIZON</h1>
+        <p class="brand-subtitle">Studio File Sharing</p>
+      </div>
+      <form id="login-form" class="login-form" autocomplete="off">
+        <div class="form-group floating">
+          <input type="email" id="login-email" required autocomplete="email" placeholder=" ">
+          <label for="login-email">Email Address</label>
+          <div class="input-glow"></div>
+        </div>
+        <div class="form-group floating">
+          <input type="password" id="login-password" required autocomplete="current-password" placeholder=" ">
+          <label for="login-password">Password</label>
+          <div class="input-glow"></div>
+        </div>
+        <div id="login-error" class="login-error" hidden></div>
+        <button type="submit" class="btn btn-primary btn-lg btn-gradient" id="login-btn">
+          <span class="btn-text">Sign In</span>
+          <span class="btn-loader" hidden></span>
+        </button>
+      </form>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════ MAIN APP ═══════════════════════ -->
+  <section id="app-shell" class="app-shell" hidden>
+
+    <!-- ── NAVBAR ── -->
+    <nav class="navbar glass-nav">
+      <div class="navbar-left">
+        <button class="sidebar-toggle" id="sidebar-toggle" aria-label="Toggle sidebar">
+          <span></span><span></span><span></span>
+        </button>
+        <div class="navbar-brand">
+          <span class="brand-icon-sm">◆</span>
+          <span class="brand-name">PLUTO HORIZON</span>
+        </div>
+      </div>
+      <div class="navbar-right">
+        <div class="user-info">
+          <span class="user-name" id="user-name"></span>
+          <span class="role-badge" id="user-role"></span>
+        </div>
+        <button class="btn btn-ghost btn-sm" id="logout-btn">
+          <span class="btn-icon">⏻</span> Logout
+        </button>
+      </div>
+    </nav>
+
+    <!-- ── SIDEBAR ── -->
+    <aside class="sidebar glass-sidebar" id="sidebar">
+      <nav class="sidebar-nav">
+        <button class="nav-item active" data-section="files">
+          <span class="nav-icon">📁</span>
+          <span class="nav-label">File Browser</span>
+        </button>
+        <button class="nav-item" data-section="shares">
+          <span class="nav-icon">🔗</span>
+          <span class="nav-label">Active Shares</span>
+        </button>
+        <button class="nav-item" data-section="settings" id="nav-settings">
+          <span class="nav-icon">⚙️</span>
+          <span class="nav-label">Settings</span>
+        </button>
+      </nav>
+    </aside>
+
+    <!-- ── MAIN CONTENT ── -->
+    <main class="main-content" id="main-content">
+
+      <!-- FILE BROWSER -->
+      <div class="content-section active" id="section-files">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title">File Browser</h2>
+            <div class="breadcrumb" id="breadcrumb"></div>
+          </div>
+        </div>
+        <div class="file-grid" id="file-grid">
+          <div class="loading-state">
+            <div class="spinner"></div>
+            <p>Loading files…</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ACTIVE SHARES -->
+      <div class="content-section" id="section-shares">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title">Active Shares</h2>
+            <p class="section-desc">Manage your shared links</p>
+          </div>
+          <div class="search-bar">
+            <input type="text" id="share-search" placeholder="Search shares…" class="input-search">
+          </div>
+        </div>
+        <div class="table-wrap glass-card">
+          <table class="data-table" id="shares-table">
+            <thead>
+              <tr>
+                <th>Token</th>
+                <th>Path</th>
+                <th>Status</th>
+                <th>Downloads</th>
+                <th>Expires</th>
+                <th>Created By</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="shares-tbody"></tbody>
+          </table>
+          <div class="empty-state" id="shares-empty" hidden>
+            <span class="empty-icon">🔗</span>
+            <p>No shares found</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- SETTINGS -->
+      <div class="content-section" id="section-settings">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title">Settings</h2>
+            <p class="section-desc">Configure sharing defaults and limits</p>
+          </div>
+        </div>
+        <div class="settings-grid" id="settings-grid">
+          <!-- Default Expiry -->
+          <div class="setting-card glass-card">
+            <div class="setting-header">
+              <span class="setting-icon">⏱️</span>
+              <div>
+                <h3 class="setting-name">Default Expiry</h3>
+                <p class="setting-desc">Default link expiry for new shares</p>
+              </div>
+            </div>
+            <div class="setting-body">
+              <div class="input-with-unit">
+                <input type="number" id="set-default-expiry" min="1" class="input" placeholder="24">
+                <select id="set-default-expiry-unit" class="input input-select">
+                  <option value="hours">Hours</option>
+                  <option value="days">Days</option>
+                </select>
+              </div>
+            </div>
+            <div class="setting-footer">
+              <button class="btn btn-primary btn-sm" data-save="defaultExpiry">Save</button>
+            </div>
+          </div>
+          <!-- Max Expiry -->
+          <div class="setting-card glass-card">
+            <div class="setting-header">
+              <span class="setting-icon">⏳</span>
+              <div>
+                <h3 class="setting-name">Max Expiry</h3>
+                <p class="setting-desc">Maximum allowed expiry time</p>
+              </div>
+            </div>
+            <div class="setting-body">
+              <div class="input-with-unit">
+                <input type="number" id="set-max-expiry" min="1" class="input" placeholder="168">
+                <select id="set-max-expiry-unit" class="input input-select">
+                  <option value="hours">Hours</option>
+                  <option value="days">Days</option>
+                </select>
+              </div>
+            </div>
+            <div class="setting-footer">
+              <button class="btn btn-primary btn-sm" data-save="maxExpiry">Save</button>
+            </div>
+          </div>
+          <!-- Default Max Downloads -->
+          <div class="setting-card glass-card">
+            <div class="setting-header">
+              <span class="setting-icon">📥</span>
+              <div>
+                <h3 class="setting-name">Default Max Downloads</h3>
+                <p class="setting-desc">Default download limit per share link</p>
+              </div>
+            </div>
+            <div class="setting-body">
+              <input type="number" id="set-default-max-downloads" min="1" class="input" placeholder="5">
+            </div>
+            <div class="setting-footer">
+              <button class="btn btn-primary btn-sm" data-save="defaultMaxDownloads">Save</button>
+            </div>
+          </div>
+          <!-- Max Zip Size -->
+          <div class="setting-card glass-card">
+            <div class="setting-header">
+              <span class="setting-icon">📦</span>
+              <div>
+                <h3 class="setting-name">Max Zip Size</h3>
+                <p class="setting-desc">Maximum folder size for zipping (MB)</p>
+              </div>
+            </div>
+            <div class="setting-body">
+              <input type="number" id="set-max-zip-size" min="1" class="input" placeholder="500">
+              <span class="input-suffix">MB</span>
+            </div>
+            <div class="setting-footer">
+              <button class="btn btn-primary btn-sm" data-save="maxZipSize">Save</button>
+            </div>
+          </div>
+          <!-- Browse Root -->
+          <div class="setting-card glass-card setting-card--wide">
+            <div class="setting-header">
+              <span class="setting-icon">📂</span>
+              <div>
+                <h3 class="setting-name">Browse Root</h3>
+                <p class="setting-desc">Root directory for file browsing</p>
+              </div>
+            </div>
+            <div class="setting-body">
+              <input type="text" id="set-browse-root" class="input" placeholder="/shared/files">
+            </div>
+            <div class="setting-footer">
+              <button class="btn btn-primary btn-sm" data-save="browseRoot">Save</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </section>
+
+  <!-- ═══════════════════════ SHARE CREATION MODAL ═══════════════════════ -->
+  <div class="modal-overlay" id="modal-overlay" hidden>
+    <div class="modal glass-card" id="share-modal">
+      <div class="modal-header">
+        <h3 class="modal-title">Create Share Link</h3>
+        <button class="modal-close" id="modal-close">&times;</button>
+      </div>
+
+      <!-- STEP 1: Configure -->
+      <div class="modal-step" id="modal-step-config">
+        <div class="modal-body">
+          <div class="share-path-display">
+            <span class="share-path-icon">📁</span>
+            <span class="share-path-text" id="share-path-text"></span>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Compress (Zip)</label>
+            <label class="toggle-switch">
+              <input type="checkbox" id="share-zip-toggle" checked>
+              <span class="toggle-slider"></span>
+            </label>
+            <span class="form-hint">Disable for pre-zipped files or single file sharing</span>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Expiry Time</label>
+            <div class="input-with-unit">
+              <input type="number" id="share-expiry" min="1" class="input" placeholder="24">
+              <select id="share-expiry-unit" class="input input-select">
+                <option value="hours">Hours</option>
+                <option value="days">Days</option>
+              </select>
+            </div>
+            <span class="form-hint" id="share-expiry-hint"></span>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Max Downloads</label>
+            <input type="number" id="share-max-downloads" min="1" class="input" placeholder="5">
+            <span class="form-hint">Limit how many times this link can be used</span>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Require Access PIN</label>
+            <div class="pin-row">
+              <label class="toggle-switch">
+                <input type="checkbox" id="share-pin-toggle">
+                <span class="toggle-slider"></span>
+              </label>
+              <input type="text" id="share-pin-input" class="input input-pin" placeholder="Enter PIN" maxlength="8" disabled>
+              <button type="button" class="btn btn-ghost btn-sm" id="share-pin-generate" disabled>🎲 Generate</button>
+            </div>
+            <span class="form-hint">Clients must enter this PIN to access the download</span>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost" id="modal-cancel">Cancel</button>
+          <button class="btn btn-primary btn-gradient" id="share-create-btn">
+            <span class="btn-text">Create Link</span>
+            <span class="btn-loader" hidden></span>
+          </button>
+        </div>
+      </div>
+
+      <!-- STEP 2: Progress -->
+      <div class="modal-step" id="modal-step-progress" hidden>
+        <div class="modal-body modal-body--centered">
+          <div class="zip-progress">
+            <div class="zip-progress-icon">📦</div>
+            <p class="zip-progress-label">Preparing your share…</p>
+            <div class="progress-bar">
+              <div class="progress-bar-fill" id="zip-progress-fill"></div>
+            </div>
+            <span class="zip-progress-pct" id="zip-progress-pct">0%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 3: Done -->
+      <div class="modal-step" id="modal-step-done" hidden>
+        <div class="modal-body modal-body--centered">
+          <div class="share-done">
+            <div class="share-done-icon">✅</div>
+            <p class="share-done-label">Share link ready!</p>
+            <div class="share-link-box">
+              <input type="text" id="share-link-input" class="input" readonly>
+              <button class="btn btn-primary btn-sm" id="copy-link-btn">Copy</button>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost" id="modal-done-close">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════ CONFIRM DIALOG ═══════════════════════ -->
+  <div class="modal-overlay" id="confirm-overlay" hidden>
+    <div class="modal modal--sm glass-card" id="confirm-modal">
+      <div class="modal-header">
+        <h3 class="modal-title" id="confirm-title">Confirm</h3>
+        <button class="modal-close" id="confirm-close-x">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="confirm-message"></p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="confirm-cancel">Cancel</button>
+        <button class="btn btn-danger btn-sm" id="confirm-ok">Revoke</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════ TOAST CONTAINER ═══════════════════════ -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <script src="/admin.js"></script>
+</body>
+</html>

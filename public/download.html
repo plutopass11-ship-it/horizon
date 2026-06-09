@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pluto Horizon — Download</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/download.css">
+</head>
+<body>
+  <div class="dl-bg-orb dl-bg-orb--1"></div>
+  <div class="dl-bg-orb dl-bg-orb--2"></div>
+  <div class="dl-bg-orb dl-bg-orb--3"></div>
+
+  <main class="dl-wrapper">
+    <div class="dl-card glass-card" id="dl-card">
+
+      <!-- Branding -->
+      <div class="dl-brand">
+        <span class="dl-brand-icon">◆</span>
+        <h1 class="dl-brand-title">PLUTO HORIZON</h1>
+        <p class="dl-brand-sub">Shared by Flying Pluto Studios</p>
+      </div>
+
+      <!-- STATE: Loading -->
+      <div class="dl-state" id="dl-loading">
+        <div class="spinner spinner--lg"></div>
+        <p class="dl-state-text">Loading share info…</p>
+      </div>
+
+      <!-- STATE: PIN Required -->
+      <div class="dl-state" id="dl-pin" hidden>
+        <div class="dl-state-icon">🔒</div>
+        <h2 class="dl-state-heading">PIN Required</h2>
+        <p class="dl-state-text">Enter the access PIN to view this download</p>
+        <div class="dl-pin-form">
+          <input type="text" id="dl-pin-input" class="dl-pin-input" placeholder="Enter PIN" maxlength="8" autocomplete="off">
+          <button class="dl-btn dl-btn--sm" id="dl-pin-submit">
+            <span class="dl-btn-bg"></span>
+            <span class="dl-btn-text">Verify</span>
+          </button>
+          <p class="dl-pin-error" id="dl-pin-error" hidden></p>
+        </div>
+      </div>
+
+      <!-- STATE: Preparing (zipping) -->
+      <div class="dl-state" id="dl-preparing" hidden>
+        <div class="dl-preparing-icon">📦</div>
+        <p class="dl-state-text">Preparing your download…</p>
+        <div class="progress-bar progress-bar--lg">
+          <div class="progress-bar-fill" id="dl-progress-fill"></div>
+        </div>
+        <span class="dl-progress-pct" id="dl-progress-pct">0%</span>
+      </div>
+
+      <!-- STATE: Ready -->
+      <div class="dl-state" id="dl-ready" hidden>
+        <div class="dl-file-info">
+          <div class="dl-file-icon">📁</div>
+          <h2 class="dl-file-name" id="dl-file-name"></h2>
+          <div class="dl-file-meta">
+            <span class="dl-meta-item" id="dl-file-size"></span>
+            <span class="dl-meta-dot">·</span>
+            <span class="dl-meta-item" id="dl-downloads-left"></span>
+          </div>
+        </div>
+        <div class="dl-countdown" id="dl-countdown">
+          <p class="dl-countdown-label">Link expires in</p>
+          <div class="dl-countdown-timer">
+            <div class="dl-cd-unit">
+              <span class="dl-cd-value" id="cd-days">00</span>
+              <span class="dl-cd-label">Days</span>
+            </div>
+            <span class="dl-cd-sep">:</span>
+            <div class="dl-cd-unit">
+              <span class="dl-cd-value" id="cd-hours">00</span>
+              <span class="dl-cd-label">Hours</span>
+            </div>
+            <span class="dl-cd-sep">:</span>
+            <div class="dl-cd-unit">
+              <span class="dl-cd-value" id="cd-mins">00</span>
+              <span class="dl-cd-label">Min</span>
+            </div>
+            <span class="dl-cd-sep">:</span>
+            <div class="dl-cd-unit">
+              <span class="dl-cd-value" id="cd-secs">00</span>
+              <span class="dl-cd-label">Sec</span>
+            </div>
+          </div>
+        </div>
+        <button class="dl-btn" id="dl-btn">
+          <span class="dl-btn-bg"></span>
+          <span class="dl-btn-text">⬇ Download</span>
+        </button>
+      </div>
+
+      <!-- STATE: Expired -->
+      <div class="dl-state" id="dl-expired" hidden>
+        <div class="dl-state-icon dl-state-icon--error">⏰</div>
+        <h2 class="dl-state-heading">Link Expired</h2>
+        <p class="dl-state-text">This share link has expired and is no longer available.</p>
+      </div>
+
+      <!-- STATE: Revoked -->
+      <div class="dl-state" id="dl-revoked" hidden>
+        <div class="dl-state-icon dl-state-icon--error">🚫</div>
+        <h2 class="dl-state-heading">Link Revoked</h2>
+        <p class="dl-state-text">This share link has been revoked by the owner.</p>
+      </div>
+
+      <!-- STATE: Limit Reached -->
+      <div class="dl-state" id="dl-limit" hidden>
+        <div class="dl-state-icon dl-state-icon--warning">📊</div>
+        <h2 class="dl-state-heading">Download Limit Reached</h2>
+        <p class="dl-state-text">This share link has reached its maximum number of downloads.</p>
+      </div>
+
+      <!-- STATE: Not Found / Error -->
+      <div class="dl-state" id="dl-error" hidden>
+        <div class="dl-state-icon dl-state-icon--error">❌</div>
+        <h2 class="dl-state-heading">Not Found</h2>
+        <p class="dl-state-text" id="dl-error-text">This share link does not exist or could not be loaded.</p>
+      </div>
+
+    </div>
+
+    <footer class="dl-footer">
+      Powered by <strong>Pluto Horizon</strong>
+    </footer>
+  </main>
+
+  <script src="/download.js"></script>
+</body>
+</html>
