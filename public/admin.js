@@ -115,6 +115,8 @@
   const $sidebar       = document.getElementById('sidebar');
   const $navSettings   = document.getElementById('nav-settings');
   const $breadcrumb    = document.getElementById('breadcrumb');
+  const $pathJumpInput = document.getElementById('path-jump-input');
+  const $pathJumpBtn   = document.getElementById('path-jump-btn');
   const $fileGrid      = document.getElementById('file-grid');
   const $sharesTbody   = document.getElementById('shares-tbody');
   const $sharesEmpty   = document.getElementById('shares-empty');
@@ -270,6 +272,34 @@
   /* ═══════════════════════════════════════════════════════════════
      FILE BROWSER
      ═══════════════════════════════════════════════════════════════ */
+
+  function handlePathJump() {
+    const raw = $pathJumpInput.value.trim();
+    if (!raw) return;
+    
+    // Normalize slashes
+    let cleaned = raw.replace(/\\/g, '/');
+    // Strip Windows drive letters (e.g. Z:/)
+    cleaned = cleaned.replace(/^[a-zA-Z]:\/?/, '');
+    // Strip leading slashes
+    cleaned = cleaned.replace(/^\/+/, '');
+    
+    // Strip common network share prefixes or local mount paths if present
+    // The browse_root is typically /data/nas which maps to the whole NAS.
+    // If they paste a path like /volume1/docker/... we can't guess easily without more config,
+    // but the drive letter stripping handles the "Z:\Media\..." case perfectly.
+    
+    loadFiles(cleaned);
+  }
+
+  if ($pathJumpBtn) {
+    $pathJumpBtn.addEventListener('click', handlePathJump);
+  }
+  if ($pathJumpInput) {
+    $pathJumpInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') handlePathJump();
+    });
+  }
 
   async function loadFiles(path) {
     state.currentPath = path;
